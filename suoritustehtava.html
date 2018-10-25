@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Suoritustehtävä</title>
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="http://www.w3schools.com/lib/w3.css">
+	<link rel="stylesheet" href="http://www.w3schools.com/lib/w3-theme-indigo.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<!-- JQuery CDN -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+	
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+	
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+	<!-- Scriptit -->
+	<script>
+	
+	var lsarray = [];
+	
+$(document).ready(function()
+{		
+	
+	$.ajax({
+    url:'toiminnot.php?urll=http://atlas3.lintuatlas.fi/tulokset/lajit_ryhmittain',
+        type:'GET',
+        success: function(data){
+			   $('#lajit').html($(data).find('ul#lajilista').html());
+			   
+			   var li = document.getElementsByTagName('a');
+
+			   var data = '';
+			   for (var i = 0; i < li.length; i++)
+			   {
+				data += li[i].childNodes[0].nodeValue;
+				data += li[i].childNodes[1].childNodes[0].nodeValue;
+				
+				data += li[i].childNodes[2].nodeValue;
+				
+			   lsarray.push(data);
+			   data = '';
+			   }
+			   
+        }
+	});
+});	
+
+	
+			var app = angular.module('laskenta', []);
+			app.controller('myCtrl', function($scope, $http) 
+			{
+			
+			$scope.sortType = 'documentID';
+			$scope.sortReverse = false;
+			
+			$scope.years = [];
+			var i;
+			for (i = 2016; i >= 1956; i--) {
+				
+				$scope.years.push(i);
+			}
+
+			
+			$scope.census = ['syksy', 'talvi', 'kevät'];
+			
+			$vuosi = 2016;
+			$kausi = 1;
+			
+			$scope.paivita = function () {
+			
+			$scope.ladataan = true; // latauskuvake pyörii			
+			
+			if ($scope.selectedYear)
+			{
+				$vuosi = $scope.selectedYear;	
+			}
+			
+			if ($scope.selectedCensus)
+			{
+				$kausi = $scope.selectedCensus;
+				
+				if ($kausi == 'syksy')
+				{
+				$kausi = 1;
+				}
+				if ($kausi == 'talvi')
+				{
+				$kausi = 2;
+				}
+				if ($kausi == 'kevät')
+				{
+				$kausi = 3;
+				}
+				
+			}
+			var url = 'toiminnot.php?urli=http://koivu.luomus.fi/talvilinnut/census.php&year=';
+			url += $vuosi;
+			url += '&census=';
+			url += $kausi;
+			url += '&format=json';
+			
+			  $http({
+				method : 'GET',
+				url : url
+			  }).then(function mySucces(response) {
+				$scope.ladataan = false;
+				  $scope.documentID = response.data;
+				  $scope.route = response.data;
+				  $scope.municipality = response.data;
+				}, function myError(response) {
+				$scope.ladataan = false;
+				  $scope.documentID = response.statusText;
+				  $scope.route = response.data;
+				  $scope.municipality = response.data;
+				  angular.element('#error01').css('display', 'block');
+			  });
+			}
+			
+			$scope.paivita();
+			
+			$scope.avaaIkkuna = function (documentID) {
+				$tunnus = documentID;
+				angular.element('#'+$tunnus).css('display', 'block');
+				lataaxml($tunnus);
+				$('.odotus').show();
+			}
+ 
+			$scope.suljeIkkuna = function () {
+				angular.element('.w3-modal').css('display', 'none');	
+				$('.modaltiedot').remove();		// poistetaan suljetun ikkunan taulukon rivistö, näyttää muuten pelkän ensimmäisen id:n tiedot	
+			} 
+
+			});
+			
+	
+	function lataaxml(tunnus) {
+	var tunnus = $tunnus;
+	  var xmlhttp = new XMLHttpRequest();
+	    if (window.XMLHttpRequest) {
+    xmlhttp = new XMLHttpRequest();
+  } else {
+    // vanhemmille selaimille
+    xmlhttp = new ActiveXObject('Microsoft.XMLHTTP');
+  }
+	  xmlhttp.onreadystatechange = function() {
+		if (this.readyState == 4 && this.status == 200) {
+		  myFunction(this);
+		}
+	  };
+	  xmlhttp.open('GET', 'toiminnot.php?haexml&id='+tunnus, true);
+	  xmlhttp.send();
+	}
+
+	function myFunction(xml) 
+	{
+	  var z, x, p, i, l, xmlDoc, rivit;
+	  var parray = []; // biotooppi f
+	  var yarray = []; // yksilömäärä
+	  var larray = []; // laji latinaksi
+	  var sarray = []; // sukupuolet ei toimi vielä :)
+	  var lajiarray = [];
+	  
+
+	  xmlDoc = xml.responseXML;
+	  
+	  rivit = "";
+	  
+	  p = xmlDoc.getElementsByTagName('Parameter');
+	  
+
+		for (i = 0; i < p.length; i++) 
+		{	
+			
+			if (p[i].childNodes[0].nodeValue == 'YksilömääräBiotooppiF')
+			{
+				x = haesisar(p[i].parentNode.firstChild); // siirrytään sisar solmuun
+				
+				parray.push(x.childNodes[0].nodeValue);
+			}
+
+			if (p[i].childNodes[0].nodeValue == 'Yksilömäärä')
+			{
+				x = haesisar(p[i].parentNode.firstChild); // siirrytään sisar solmuun
+				
+				yarray.push(x.childNodes[0].nodeValue);
+			}
+			
+			if (p[i].childNodes[0].nodeValue == 'InformalNameString')
+			{
+				x = haesisar(p[i].parentNode.firstChild); // siirrytään sisar solmuun
+				
+				larray.push(x.childNodes[0].nodeValue);
+				
+				l = etsinimi(x.childNodes[0].nodeValue);
+				
+				lajiarray.push(l);
+
+			}
+			
+			if (p[i].childNodes[0].nodeValue == 'YksilömääräSukupuolet')
+			{
+				x = haesisar(p[i].parentNode.firstChild); // siirrytään sisar solmuun
+
+				sarray.push(x.childNodes[0].nodeValue);
+			}
+
+
+
+		}
+
+		
+		for (i = 0; i < parray.length; i++) 
+		{
+			rivit += '<tr class="modaltiedot w3-animate-top">';
+			rivit += '<td>'+lajiarray[i]+'</td>';
+			rivit += '<td>'+larray[i]+'</td>';
+			rivit += '<td>'+parray[i]+'</td>';	
+			rivit += '<td>'+yarray[i]+'</td>';
+			if (sarray[i] == null)
+			{
+			rivit += '<td>Ei merkintää</td>';
+			}
+			else
+			{
+			rivit += '<td>'+sarray[i]+'</td>';
+			}
+			rivit += '</tr>';	
+		}
+		$('.odotus').hide();
+		$('.tulostaxml').append(rivit);
+		
+	  
+	}
+	
+	function etsinimi(x) {
+
+	var pituus = lsarray.length;
+    for (var i = 0; i < 253; i++) {
+
+		var latinaksi = lsarray[i].split('(')[1];
+		latinaksi = latinaksi.slice(0, -2);
+
+		var str = latinaksi;
+		var patt = new RegExp(x);
+
+		var loytyi = '';
+		loytyi = patt.test(str);
+		
+        if (loytyi)
+		{
+			var kohde = lsarray[i].split('(')[0];
+            return kohde;
+		}
+    }
+	// kohdetta ei löytnyt
+    return null; 
+	}
+	
+	function haesisar(x) {
+    var y = x.nextSibling;
+    //elementti solmun tarkistus
+    while (y.nodeType != 1) {
+        y = y.nextSibling;
+    }
+    return y;
+	}
+	
+$(document).ready(function()
+{
+	
+	$('#menu').click(function()
+	{
+		$('#valikko').toggle(250);		
+	});
+	
+	$('#close').click(function()
+	{
+		$('#paneeli').hide(200);		
+	});
+	
+});	
+</script>
+
+</head>
+<body>
+	<div class="w3-container" ng-app="laskenta" ng-controller="myCtrl"> 
+		<div class="w3-row w3-theme-d5 w3-text-shadow">
+			<ul class="w3-navbar">
+				<li>
+					<h1 class="w3-left" style="margin-left:10px;">Lintujen laskentatiedot</h1>
+				</li>
+				<li class="w3-xxlarge w3-right w3-text-white" style="margin-right:10px;" id="menu">
+					<i class="fa fa-bars w3-center" style="cursor:pointer;"></i>
+					
+				</li>
+			</ul>
+		</div>
+		<div class="w3-row w3-theme-l5">
+			<div class="w3-row w3-theme-l5" id="valikko">
+				<div class="w3-row">
+					<br />
+					<div class="w3-col w3-theme-d4 w3-center" style="width:50px;">
+						<i class="w3-xxlarge fa fa-search"></i>
+					</div>
+					<div class="w3-rest">
+						<input type="text" class="w3-input w3-border" ng-model="haeid.documentID" placeholder="Hae ID"></input>
+
+					</div>
+					<br />
+				</div>
+				<div class="w3-row">
+					<div class="w3-col s6">
+						<label>Valitse Vuosi</label>
+						<select id="year" class="w3-select" ng-model="selectedYear" ng-options="y for y in years" ng-change="paivita();">
+						</select>
+					</div>
+					<div class="w3-col s6">
+						<label>Laskentakausi</label>
+						<select id="census" class="w3-select" ng-model="selectedCensus" ng-options="c for c in census" ng-change="paivita();">
+						</select>
+					</div>
+				</div>
+			</div>
+			<div>
+				<div ng-show="ladataan" class="w3-round-jumbo w3-theme-d2">
+					<p style="text-align:center;font-size:36px;"><i class="fa fa-circle-o-notch fa-spin"></i> Haetaan tietoja...</p>	
+				</div>
+						
+			</div>
+			<div id="paneeli" class="w3-panel w3-theme-l3 w3-card-2 w3-animate-right w3-leftbar">
+				<span class="w3-closebtn" id="close"><i class="fa fa-times"></i></span>
+				<p><i class="fa fa-info-circle" style="font-size:24px"></i> Laskentojen järjestäminen on mahdollista painamalla reittiä tai kuntaa. Paina haluamaasi ID:tä jonka tiedot haluat näkyvän</p>
+			</div>
+			<br />
+		</div>
+		<div class="w3-row">
+			<div id="error01" class="w3-panel w3-center w3-red w3-card-8 w3-animate-left" style="display:none;">
+				<h3>Virhe</h3>
+				<p>Yhteyttä ei saatu</p>
+			</div>  
+			<div class="w3-responsive">
+				<table class="w3-table-all">
+					<thead>
+						<tr class="w3-theme-d4">
+							<td><strong>Id</strong></td>
+							<td></td>
+							<td style="cursor:pointer;" ng-click="sortType = 'route'; sortReverse = !sortReverse">
+								<strong>
+								Reitti 
+								<span ng-show="sortType == 'route' && !sortReverse" class="fa fa-caret-down"></span> 
+								<span ng-show="sortType == 'route' && sortReverse" class="fa fa-caret-up"></span> 
+								</strong>
+							</td>
+							<td style="cursor:pointer;" ng-click="sortType = 'municipality'; sortReverse = !sortReverse">
+								<strong>
+								Kunta 
+								<span ng-show="sortType == 'municipality' && !sortReverse" class="fa fa-caret-down"></span> 
+								<span ng-show="sortType == 'municipality' && sortReverse" class="fa fa-caret-up"></span> 
+								</strong>
+							</td>
+						</tr>
+					</thead>
+					<tbody>
+						<tr ng-repeat="x in documentID | filter: haeid | orderBy:sortType:sortReverse">
+							<td style="cursor:pointer;" ng-click="avaaIkkuna(x.documentID)"><b> {{x.documentID}}</b></td>
+							
+							<td>
+								<div id="{{x.documentID}}" class="w3-modal">
+									<div class="w3-modal-content w3-animate-top">
+										<div class="w3-container">
+											<span ng-click="suljeIkkuna()" class="w3-closebtn"><i class="fa fa-times"></i></span>
+											<br />
+										</div>
+										<div class="w3-container w3-border-bottom">
+											<h4 class="w3-text-theme">{{x.documentID}}</h4>
+										</div>
+										<div class="w3-container">
+											<div class="w3-responsive">
+												<table class="w3-card-4 w3-tiny w3-table-all">
+												<thead>
+													<tr class="w3-theme-d4">
+														<th>Laji suomeksi</th>
+														<th>Laji</th>
+														<th>Yksilömäärä Biotooppi F</th>
+														<th>Yksilömäärä</th>
+														<th>Yksilömäärä Sukupuolet</th>
+													</tr>
+												</thead>
+												<tbody class="tulostaxml">
+												</tbody>
+												</table>
+											</div>
+											<div class="odotus">
+												<p style="text-align:center;font-size:36px;"><i class="fa fa-circle-o-notch fa-spin w3-text-blue"></i></p>	
+											</div>
+											<br />
+										</div>
+									</div>
+								</div>
+							</td>
+							<td>{{x.route}}</td>
+							<td>{{x.municipality}}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+		<div class="w3-row w3-text-theme w3-right">
+			<p>Selainohjelmointi 2, suoritustehtävä | Jarkko Kaartinen | 2016 </p>
+		</div>
+		<div style="display:none;">
+		<p id="lajit"></p>
+		</div>
+	</div>
+</body>
+</html>
